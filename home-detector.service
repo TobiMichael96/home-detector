@@ -1,0 +1,11 @@
+[Unit]
+Description=Home-Detector
+After=network.target
+
+[Service]
+Type=simple
+ExecStart=/usr/bin/python3 main.py
+PIDFile=/tmp/home-detector.pid
+
+[Install]
+WantedBy=default.target
