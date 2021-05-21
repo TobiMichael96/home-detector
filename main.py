@@ -37,7 +37,9 @@ class IOT:
             requests.get("http://" + self.ip + "/cm?cmnd=Power%20On")
 
     def turn_off(self):
-        requests.get("http://" + self.ip + "/cm?cmnd=Power%20Off")
+        resp = requests.get("http://" + self.ip + "/cm?cmnd=Power%20Off")
+        if resp.status_code != 200:
+            requests.get("http://" + self.ip + "/cm?cmnd=Power%20Off")
 
 
 def get_iot(name):
