@@ -1,0 +1,13 @@
+log: info
+address: "FRITZBOXIPHERE"
+password: "PASSWORDHERE"
+to_track: "DEVICENAMEHERE"
+
+iot:
+  example1:
+    ip: "192.168.2.234"
+    time: "19:00"
+  example2:
+    ip: "192.168.2.111"
+    time: "20:00"
+    night: true
