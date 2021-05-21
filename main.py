@@ -2,6 +2,8 @@ import time
 from datetime import datetime, timedelta
 import logging
 import requests
+import sys
+import os
 import yaml
 from fritzconnection.lib.fritzhosts import FritzHosts
 
@@ -116,7 +118,7 @@ def init():
 
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - (%(levelname)s) - %(message)s')
-with open("config.yaml", 'r') as stream:
+with open(os.path.join(sys.path[0], 'config.yaml'), 'r') as stream:
     data_loaded = yaml.safe_load(stream)
 
 if data_loaded['log'] == "debug":
