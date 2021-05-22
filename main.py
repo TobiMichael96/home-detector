@@ -1,6 +1,7 @@
 import time
 from datetime import datetime, timedelta
 import logging
+from logging.handlers import RotatingFileHandler
 import requests
 import sys
 import os
@@ -117,13 +118,24 @@ def init():
     logging.info("Init step done. Found {} IOT devices to handle.".format(len(iots)))
 
 
-logging.basicConfig(level=logging.INFO, format='%(asctime)s - (%(levelname)s) - %(message)s')
+logFormatter = logging.Formatter('%(asctime)s - (%(levelname)s) - %(message)s')
+rootLogger = logging.getLogger()
+rootLogger.setLevel(logging.INFO)
+
+fileHandler = RotatingFileHandler(os.path.join(sys.path[0], 'log.log'), maxBytes=(1048576*5), backupCount=7)
+fileHandler.setFormatter(logFormatter)
+rootLogger.addHandler(fileHandler)
+
+consoleHandler = logging.StreamHandler()
+consoleHandler.setFormatter(logFormatter)
+rootLogger.addHandler(consoleHandler)
+
 with open(os.path.join(sys.path[0], 'config.yaml'), 'r') as stream:
     data_loaded = yaml.safe_load(stream)
 
 if data_loaded['log'] == "debug":
-    logging.getLogger().setLevel(logging.DEBUG)
-    logging.info("Increase loglevel to debug.")
+    rootLogger.setLevel(logging.DEBUG)
+    logging.warning("Increased loglevel to debug.")
 
 logging.info("Initiating application now...")
 fh = FritzHosts(address=data_loaded['address'], password=data_loaded['password'])
