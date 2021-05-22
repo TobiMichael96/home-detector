@@ -45,7 +45,6 @@ def is_between(time_check, time_range):
 def turn_off_all(iots):
     for iot in iots:
         iot.turn_off()
-    logging.info("Turned all IOTs off as device is not present.")
 
 
 def check_between(iots):
@@ -58,11 +57,14 @@ def check_between(iots):
 
 
 def check_present(iots):
-    if datetime.now().strftime('%H:%M') > "19:00" and status == 1:
+    if datetime.now().strftime('%H:%M') > data_loaded['night_time'] and status == 1:
         for iot in iots:
             if iot.night:
                 iot.turn_on()
                 logging.info("Turned IOT ({}) on because of night enabled.".format(iot.name))
+    elif status == 0:
+        turn_off_all(iots)
+        logging.info("Turned all IOTs off as device is not present.")
 
 
 def main():
@@ -70,8 +72,6 @@ def main():
         iots, changed = load_config()
         if status == 1:
             check_between(iots)
-        if status == 0:
-            turn_off_all(iots)
         if changed:
             check_present(iots)
         logging.debug("Device present: {}.".format("false" if status == 0 else "true"))
