@@ -1,7 +1,7 @@
 log: info
 address: "FRITZBOXIPHERE"
 password: "PASSWORDHERE"
-to_track: "DEVICENAMEHERE"
+to_track: "DEVICEIPHERE"
 
 iot:
   example1:

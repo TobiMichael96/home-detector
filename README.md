@@ -1,7 +1,8 @@
 # Home-Detector
 
 This script will check if a device is connected to your FritzBox 
-and turn your sonoff-devices off or on based on time or present of your device.
+and turn your sonoff-devices (flashed with [Tasmota](https://github.com/arendst/Tasmota)) off or on 
+based on time or present of your device.
 
 ## Configuration
 
