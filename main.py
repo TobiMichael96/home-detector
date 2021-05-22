@@ -8,31 +8,13 @@ import os
 import yaml
 from fritzconnection.lib.fritzhosts import FritzHosts
 
-iots = []
-devices = []
-
-
-class Devices:
-    def __init__(self, name, status):
-        self.id = len(devices)
-        self.name = name
-        self.status = status
-        devices.append(self)
-
-    def set_status(self, status):
-        changed = True if self.status != status else False
-        self.status = status
-        return changed
-
 
 class IOT:
-    def __init__(self, name, ip, time, night):
-        self.id = len(iots)
+    def __init__(self, name, ip, on_time, night):
         self.name = name
         self.ip = str(ip)
-        self.time = time
+        self.on_time = on_time
         self.night = night
-        iots.append(self)
 
     def turn_on(self):
         resp = requests.get("http://" + self.ip + "/cm?cmnd=Power%20On")
@@ -45,10 +27,13 @@ class IOT:
             requests.get("http://" + self.ip + "/cm?cmnd=Power%20Off")
 
 
-def get_iot(name):
-    for entry in iots:
-        if entry.name == name:
-            return entry
+def check_status():
+    global status
+    host_temp = fh.get_specific_host_entry_by_ip(data_loaded['to_track'])
+    new_status = 1 if host_temp['NewActive'] else 0
+    changed = True if status != new_status else False
+    status = new_status
+    return changed
 
 
 def is_between(time_check, time_range):
@@ -57,65 +42,52 @@ def is_between(time_check, time_range):
     return time_range[0] <= time_check <= time_range[1]
 
 
-def turn_off_all():
-    for entry in iots:
-        iot = get_iot(entry.name)
+def turn_off_all(iots):
+    for iot in iots:
         iot.turn_off()
     logging.info("Turned all IOTs off as device is not present.")
 
 
-def check_between():
-    for entry in iots:
-        between = is_between(entry.time, (datetime.now().strftime('%H:%M'),
-                                          (datetime.now() + timedelta(seconds=30)).strftime('%H:%M')))
+def check_between(iots):
+    for iot in iots:
+        between = is_between(iot.on_time, (datetime.now().strftime('%H:%M'),
+                                           (datetime.now() + timedelta(seconds=30)).strftime('%H:%M')))
         if between:
-            iot = get_iot(entry.name)
             iot.turn_on()
             logging.info("Turned IOT ({}) on as time ({}) is reached.".format(iot.name, iot.time))
 
 
-def check_present(status):
+def check_present(iots):
     if datetime.now().strftime('%H:%M') > "19:00" and status == 1:
-        for entry in iots:
-            if entry.night:
-                iot = get_iot(entry.name)
+        for iot in iots:
+            if iot.night:
                 iot.turn_on()
                 logging.info("Turned IOT ({}) on because of night enabled.".format(iot.name))
 
 
 def main():
     while True:
-        hosts = fh.get_hosts_info()
-        for device in devices:
-            for host in hosts:
-                status = 1 if host['status'] else 0
-                name = host['name']
-                if device.name == name:
-                    if device.status == 1:
-                        check_between()
-                    if device.status == 0:
-                        turn_off_all()
-                    if device.set_status(status):
-                        check_present(status)
-                    logging.debug("Device present: {}.".format("false" if device.status == 0 else "true"))
+        iots, changed = load_config()
+        if status == 1:
+            check_between(iots)
+        if status == 0:
+            turn_off_all(iots)
+        if changed:
+            check_present(iots)
+        logging.debug("Device present: {}.".format("false" if status == 0 else "true"))
         time.sleep(30)
 
 
-def init():
+def load_config():
+    iots = []
     for entry in data_loaded['iot']:
-        IOT(entry, data_loaded['iot'][entry]['ip'], data_loaded['iot'][entry]['time'],
-            True if "night" in data_loaded['iot'][entry] else False)
+        iot = IOT(entry, data_loaded['iot'][entry]['ip'], data_loaded['iot'][entry]['time'],
+                  True if "night" in data_loaded['iot'][entry] else False)
+        iots.append(iot)
+    logging.debug("Reloaded config. Found {} IOT devices to handle.".format(len(iots)))
 
-    to_track = data_loaded['to_track']
-
-    hosts = fh.get_hosts_info()
-    for host in hosts:
-        status = 1 if host['status'] else 0
-        name = host['name']
-        if name == to_track:
-            Devices(name, status)
-
-    logging.info("Init step done. Found {} IOT devices to handle.".format(len(iots)))
+    changed = check_status()
+    return iots, changed
 
 
 logFormatter = logging.Formatter('%(asctime)s - (%(levelname)s) - %(message)s')
@@ -139,5 +111,7 @@ if data_loaded['log'] == "debug":
 
 logging.info("Initiating application now...")
 fh = FritzHosts(address=data_loaded['address'], password=data_loaded['password'])
-init()
+host = fh.get_specific_host_entry_by_ip(data_loaded['to_track'])
+status = 1 if host['NewActive'] else 0
+logging.info("Initializing done.")
 main()
