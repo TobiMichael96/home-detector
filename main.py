@@ -54,7 +54,7 @@ def check_between(iots):
                                            (datetime.now() + timedelta(seconds=30)).strftime('%H:%M')))
         if between:
             iot.turn_on()
-            logging.info("Turned IOT ({}) on as time ({}) is reached.".format(iot.name, iot.time))
+            logging.info("Turned IOT ({}) on as time ({}) is reached.".format(iot.name, iot.on_time))
 
 
 def check_present(iots):
