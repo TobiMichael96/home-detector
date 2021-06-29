@@ -17,14 +17,30 @@ class IOT:
         self.night = night
 
     def turn_on(self):
-        resp = requests.get("http://" + self.ip + "/cm?cmnd=Power%20On")
-        if resp.status_code != 200:
-            requests.get("http://" + self.ip + "/cm?cmnd=Power%20On")
+        for attempt in range(5):
+            try:
+                resp = requests.get("http://" + self.ip + "/cm?cmnd=Power%20On")
+                if resp.status_code != 200:
+                    requests.get("http://" + self.ip + "/cm?cmnd=Power%20On")
+            except ConnectionError as e:
+                logging.debug(e)
+                time.sleep(5)
+                self.turn_on()
+            else:
+                break
 
     def turn_off(self):
-        resp = requests.get("http://" + self.ip + "/cm?cmnd=Power%20Off")
-        if resp.status_code != 200:
-            requests.get("http://" + self.ip + "/cm?cmnd=Power%20Off")
+        for attempt in range(10):
+            try:
+                resp = requests.get("http://" + self.ip + "/cm?cmnd=Power%20Off")
+                if resp.status_code != 200:
+                    requests.get("http://" + self.ip + "/cm?cmnd=Power%20Off")
+            except ConnectionError as e:
+                logging.debug(e)
+                time.sleep(5)
+                self.turn_on()
+            else:
+                break
 
 
 def check_status():
