@@ -5,6 +5,8 @@ After=network.target
 [Service]
 Type=simple
 ExecStart=/usr/bin/python3 main.py
+Restart=on-failure
+RestartSec=15s
 PIDFile=/tmp/home-detector.pid
 
 [Install]
