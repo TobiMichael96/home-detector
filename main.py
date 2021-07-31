@@ -65,6 +65,8 @@ def turn_off_all(iots):
 
 def check_between(iots):
     for iot in iots:
+        if iot.on_time is None:
+            return
         between = is_between(iot.on_time, (datetime.now().strftime('%H:%M'),
                                            (datetime.now() + timedelta(seconds=30)).strftime('%H:%M')))
         if between:
@@ -97,7 +99,8 @@ def main():
 def load_config():
     iots = []
     for entry in data_loaded['iot']:
-        iot = IOT(entry, data_loaded['iot'][entry]['ip'], data_loaded['iot'][entry]['time'],
+        iot = IOT(entry, data_loaded['iot'][entry]['ip'],
+                  data_loaded['iot'][entry]['time'] if data_loaded['iot'][entry]['time'] else None,
                   True if "night" in data_loaded['iot'][entry] else False)
         iots.append(iot)
     logging.debug("Reloaded config. Found {} IOT devices to handle.".format(len(iots)))
