@@ -100,7 +100,7 @@ def load_config():
     iots = []
     for entry in data_loaded['iot']:
         iot = IOT(entry, data_loaded['iot'][entry]['ip'],
-                  data_loaded['iot'][entry]['time'] if data_loaded['iot'][entry]['time'] else None,
+                  data_loaded['iot'][entry]['time'] if "time" in data_loaded['iot'][entry] else None,
                   True if "night" in data_loaded['iot'][entry] else False)
         iots.append(iot)
     logging.debug("Reloaded config. Found {} IOT devices to handle.".format(len(iots)))
