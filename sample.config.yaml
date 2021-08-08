@@ -3,6 +3,8 @@ address: "FRITZBOXIPHERE"
 password: "PASSWORDHERE"
 to_track: "DEVICEIPHERE"
 night_time: "20:00"
+tv_ip: "TVIPHERE"
+
 
 iot:
   example1:

@@ -1,10 +1,14 @@
+import base64
+import json
+import logging
+import os
+import ssl
+import sys
 import time
 from datetime import datetime, timedelta
-import logging
 from logging.handlers import RotatingFileHandler
+
 import requests
-import sys
-import os
 import yaml
 from fritzconnection.lib.fritzhosts import FritzHosts
 
@@ -44,11 +48,11 @@ class IOT:
 
 
 def check_status():
-    global status
+    global STATUS
     host_temp = fh.get_specific_host_entry_by_ip(data_loaded['to_track'])
     new_status = 1 if host_temp['NewActive'] else 0
-    changed = True if status != new_status else False
-    status = new_status
+    changed = True if STATUS != new_status else False
+    STATUS = new_status
     return changed
 
 
@@ -75,25 +79,79 @@ def check_between(iots):
 
 
 def check_present(iots):
-    if datetime.now().strftime('%H:%M') > data_loaded['night_time'] and status == 1:
-        for iot in iots:
-            if iot.night:
-                iot.turn_on()
-                logging.info("Turned IOT ({}) on because of night enabled.".format(iot.name))
-    elif status == 0:
+    if 'night_time' in data_loaded:
+        if datetime.now().strftime('%H:%M') > data_loaded['night_time'] and STATUS == 1:
+            for iot in iots:
+                if iot.night:
+                    iot.turn_on()
+                    logging.info("Turned IOT ({}) on because of night enabled.".format(iot.name))
+    elif STATUS == 0:
         turn_off_all(iots)
         logging.info("Turned all IOTs off as device is not present.")
 
 
+def check_tv_status():
+    try:
+        result = requests.get('http://192.168.178.30:8001/api/v2/', timeout=5)
+    except requests.exceptions.ConnectTimeout:
+        return False
+
+    if result.json()['device']['PowerState'] == "on":
+        return True
+    else:
+        return False
+
+
+def get_tv_token():
+    global TOKEN
+
+    if not check_tv_status():
+        logging.critical("Can not get a token as TV is off.")
+        return
+
+    url = "wss://{}:8002/api/v2/channels/samsung.remote.control?name={}".format(data_loaded['tv_ip'], REMOTE_NAME)
+    try:
+        ws = create_connection(url, sslopt={'cert_reqs': ssl.CERT_NONE}, connection='Connection: Upgrade')
+        result = ws.recv()
+        TOKEN = json.loads(result)['data']['token']
+        logging.info("Successfully loaded token for TV.")
+    except (WebSocketException, WebSocketTimeoutException) as e:
+        TOKEN = None
+        logging.error("Could not create connection with error: {}".format(e))
+
+
+def send_tv_command(key):
+    if not check_tv_status():
+        logging.info("TV is already off...")
+        return
+
+    if TOKEN is None:
+        get_tv_token()
+
+    url = "wss://{}:8002/api/v2/channels/samsung.remote.control?name={}&token={}".format(data_loaded['tv_ip'], REMOTE_NAME, TOKEN)
+    ws = create_connection(url, sslopt={'cert_reqs': ssl.CERT_NONE}, connection='Connection: Upgrade')
+    payload = json.dumps(
+        {'method': 'ms.remote.control',
+         'params': {
+             'Cmd': 'Click',
+             'DataOfCmd': key,
+             'Option': 'false',
+             'TypeOfRemote': 'SendRemoteKey'
+         }})
+    ws.send(payload=payload)
+    logging.info("Turned tv off, because device is not present.")
+
+
 def main():
     while True:
-        iots, changed = load_config()
-        if status == 1:
+        iots = load_config()
+        changed = check_status()
+        if STATUS == 1 or changed:
             check_between(iots)
-        if changed:
-            check_present(iots)
-        logging.debug("Device present: {}.".format("false" if status == 0 else "true"))
-        time.sleep(30)
+        if STATUS == 0 and changed and data_loaded['tv_ip']:
+            send_tv_command('KEY_POWER')
+        logging.info("Device present: {}.".format("false" if STATUS == 0 else "true"))
+        time.sleep(15)
 
 
 def load_config():
@@ -105,15 +163,14 @@ def load_config():
         iots.append(iot)
     logging.debug("Reloaded config. Found {} IOT devices to handle.".format(len(iots)))
 
-    changed = check_status()
-    return iots, changed
+    return iots
 
 
 logFormatter = logging.Formatter('%(asctime)s - (%(levelname)s) - %(message)s')
 rootLogger = logging.getLogger()
 rootLogger.setLevel(logging.INFO)
 
-fileHandler = RotatingFileHandler(os.path.join(sys.path[0], 'log.log'), maxBytes=(1048576*5), backupCount=7)
+fileHandler = RotatingFileHandler(os.path.join(sys.path[0], 'log.log'), maxBytes=(1048576 * 5), backupCount=7)
 fileHandler.setFormatter(logFormatter)
 rootLogger.addHandler(fileHandler)
 
@@ -131,6 +188,13 @@ if data_loaded['log'] == "debug":
 logging.info("Initiating application now...")
 fh = FritzHosts(address=data_loaded['address'], password=data_loaded['password'])
 host = fh.get_specific_host_entry_by_ip(data_loaded['to_track'])
-status = 1 if host['NewActive'] else 0
-logging.info("Initializing done.")
+
+if data_loaded['tv_ip']:
+    REMOTE_NAME = base64.b64encode('HomeControl'.encode()).decode('utf-8')
+    TOKEN = None
+    from websocket import create_connection, WebSocketException, WebSocketTimeoutException
+    get_tv_token()
+
+STATUS = 1 if host['NewActive'] else 0
+logging.info("Initializing done...")
 main()
