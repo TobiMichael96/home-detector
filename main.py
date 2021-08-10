@@ -27,7 +27,7 @@ class IOT:
                 if resp.status_code != 200:
                     requests.get("http://" + self.ip + "/cm?cmnd=Power%20On")
             except ConnectionError as e:
-                logging.debug(e)
+                logging.error(e)
                 time.sleep(5)
                 self.turn_on()
             else:
@@ -40,7 +40,7 @@ class IOT:
                 if resp.status_code != 200:
                     requests.get("http://" + self.ip + "/cm?cmnd=Power%20Off")
             except ConnectionError as e:
-                logging.debug(e)
+                logging.error(e)
                 time.sleep(5)
                 self.turn_on()
             else:
@@ -150,7 +150,7 @@ def main():
             check_between(iots)
         if STATUS == 0 and changed and data_loaded['tv_ip']:
             send_tv_command('KEY_POWER')
-        logging.info("Device present: {}.".format("false" if STATUS == 0 else "true"))
+        logging.debug("Device present: {}.".format("false" if STATUS == 0 else "true"))
         time.sleep(15)
 
 
