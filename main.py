@@ -75,17 +75,19 @@ def check_between(iots):
                                            (datetime.now() + timedelta(seconds=30)).strftime('%H:%M')))
         if between:
             iot.turn_on()
-            logging.info("Turned IOT ({}) on as time ({}) is reached.".format(iot.name, iot.on_time))
+            logging.info("Turned IOT ({}) on as time ({}) was reached.".format(iot.name, iot.on_time))
 
 
 def check_present(iots):
-    if 'night_time' in data_loaded:
-        if datetime.now().strftime('%H:%M') > data_loaded['night_time'] and STATUS == 1:
-            for iot in iots:
-                if iot.night:
-                    iot.turn_on()
-                    logging.info("Turned IOT ({}) on because of night enabled.".format(iot.name))
-    elif STATUS == 0:
+    if STATUS == 1:
+        check_between(iots)
+        if 'night_time' in data_loaded:
+            if datetime.now().strftime('%H:%M') > data_loaded['night_time']:
+                for iot in iots:
+                    if iot.night:
+                        iot.turn_on()
+                        logging.info("Turned IOT ({}) on because of night enabled.".format(iot.name))
+    else:
         turn_off_all(iots)
         logging.info("Turned all IOTs off as device is not present.")
 
@@ -111,11 +113,12 @@ def get_tv_token():
 
     url = "wss://{}:8002/api/v2/channels/samsung.remote.control?name={}".format(data_loaded['tv_ip'], REMOTE_NAME)
     try:
-        ws = create_connection(url, sslopt={'cert_reqs': ssl.CERT_NONE}, connection='Connection: Upgrade')
+        ws = create_connection(url, sslopt={'cert_reqs': ssl.CERT_NONE},
+                               connection='Connection: Upgrade', validate_cert=False)
         result = ws.recv()
         TOKEN = json.loads(result)['data']['token']
         logging.info("Successfully loaded token for TV.")
-    except (WebSocketException, WebSocketTimeoutException) as e:
+    except (WebSocketException, WebSocketTimeoutException, KeyError) as e:
         TOKEN = None
         logging.error("Could not create connection with error: {}".format(e))
 
@@ -128,9 +131,11 @@ def send_tv_command(key):
     if TOKEN is None:
         get_tv_token()
 
-    url = "wss://{}:8002/api/v2/channels/samsung.remote.control?name={}&token={}".format(data_loaded['tv_ip'], REMOTE_NAME, TOKEN)
+    url = "wss://{}:8002/api/v2/channels/samsung.remote.control?name={}&token={}".format(data_loaded['tv_ip'],
+                                                                                         REMOTE_NAME, TOKEN)
     try:
-        ws = create_connection(url, sslopt={'cert_reqs': ssl.CERT_NONE}, connection='Connection: Upgrade')
+        ws = create_connection(url, sslopt={'cert_reqs': ssl.CERT_NONE},
+                               connection='Connection: Upgrade', validate_cert=False)
         payload = json.dumps(
             {'method': 'ms.remote.control',
              'params': {
@@ -141,7 +146,7 @@ def send_tv_command(key):
              }})
         ws.send(payload=payload)
         logging.info("Turned tv off, because device is not present.")
-    except (WebSocketException, WebSocketTimeoutException) as e:
+    except (WebSocketException, WebSocketTimeoutException, KeyError) as e:
         logging.error("Could not turn off TV with error: {}.".format(e))
 
 
@@ -149,12 +154,12 @@ def main():
     while True:
         iots = load_config()
         changed = check_status()
-        if STATUS == 1 or changed:
-            check_between(iots)
+        if changed:
+            check_present(iots)
         if STATUS == 0 and changed and data_loaded['tv_ip']:
             send_tv_command('KEY_POWER')
         logging.debug("Device present: {}.".format("false" if STATUS == 0 else "true"))
-        time.sleep(15)
+        time.sleep(10)
 
 
 def load_config():
@@ -165,7 +170,6 @@ def load_config():
                   True if "night" in data_loaded['iot'][entry] else False)
         iots.append(iot)
     logging.debug("Reloaded config. Found {} IOT devices to handle.".format(len(iots)))
-
     return iots
 
 
