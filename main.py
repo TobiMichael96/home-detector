@@ -49,11 +49,18 @@ class IOT:
 
 def check_status():
     global STATUS
-    host_temp = fh.get_specific_host_entry_by_ip(data_loaded['to_track'])
-    new_status = 1 if host_temp['NewActive'] else 0
-    changed = True if STATUS != new_status else False
-    STATUS = new_status
-    return changed
+    if FB_CONNECTION is not None:
+        host_temp = FB_CONNECTION.get_specific_host_entry_by_ip(data_loaded['to_track'])
+        new_status = 1 if host_temp['NewActive'] else 0
+        if STATUS != new_status:
+            changed = True
+        else:
+            changed = False
+        STATUS = new_status
+        return changed
+    else:
+        STATUS = 1
+        return False
 
 
 def is_between(time_check, time_range):
@@ -173,6 +180,16 @@ def load_config():
     return iots
 
 
+def connect_fritz_box():
+    try:
+        fh = FritzHosts(address=data_loaded['address'], password=data_loaded['password'])
+        host = fh.get_specific_host_entry_by_ip(data_loaded['to_track'])
+        return fh, host
+    except Exception as e:
+        logging.error("Connection to FRITZ!Box failed with error: {}".format(e))
+    return None, None
+
+
 logFormatter = logging.Formatter('%(asctime)s - (%(levelname)s) - %(message)s')
 rootLogger = logging.getLogger()
 rootLogger.setLevel(logging.INFO)
@@ -193,8 +210,10 @@ if data_loaded['log'] == "debug":
     logging.warning("Increased loglevel to debug.")
 
 logging.info("Initiating application now...")
-fh = FritzHosts(address=data_loaded['address'], password=data_loaded['password'])
-host = fh.get_specific_host_entry_by_ip(data_loaded['to_track'])
+
+FB_CONNECTION, device_to_track = connect_fritz_box()
+if device_to_track is None:
+    device_to_track = {'NewActive': True}
 
 if data_loaded['tv_ip']:
     REMOTE_NAME = base64.b64encode('HomeControl'.encode()).decode('utf-8')
@@ -202,6 +221,6 @@ if data_loaded['tv_ip']:
     from websocket import create_connection, WebSocketException, WebSocketTimeoutException
     get_tv_token()
 
-STATUS = 1 if host['NewActive'] else 0
+STATUS = 1 if device_to_track['NewActive'] else 0
 logging.info("Initializing done...")
 main()
