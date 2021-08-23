@@ -219,7 +219,14 @@ if data_loaded['tv_ip']:
     REMOTE_NAME = base64.b64encode('HomeControl'.encode()).decode('utf-8')
     TOKEN = None
     from websocket import create_connection, WebSocketException, WebSocketTimeoutException
-    get_tv_token()
+    if os.path.isfile(os.path.join(sys.path[0], 'tv_token')):
+        with open(os.path.join(sys.path[0], 'tv_token'), 'r') as token_file:
+            TOKEN = token_file.read()
+    else:
+        get_tv_token()
+        if TOKEN:
+            with open(os.path.join(sys.path[0], 'tv_token'), 'w') as token_file:
+                token_file.write(TOKEN)
 
 STATUS = 1 if device_to_track['NewActive'] else 0
 logging.info("Initializing done...")
