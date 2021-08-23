@@ -86,14 +86,12 @@ def check_between(iots):
 
 
 def check_present(iots):
-    if STATUS == 1:
-        check_between(iots)
-        if 'night_time' in data_loaded:
-            if datetime.now().strftime('%H:%M') > data_loaded['night_time']:
-                for iot in iots:
-                    if iot.night:
-                        iot.turn_on()
-                        logging.info("Turned IOT ({}) on because of night enabled.".format(iot.name))
+    if STATUS == 1 and 'night_time' in data_loaded:
+        if datetime.now().strftime('%H:%M') > data_loaded['night_time']:
+            for iot in iots:
+                if iot.night:
+                    iot.turn_on()
+                    logging.info("Turned IOT ({}) on because of night enabled.".format(iot.name))
     else:
         turn_off_all(iots)
         logging.info("Turned all IOTs off as device is not present.")
@@ -161,6 +159,8 @@ def main():
     while True:
         iots = load_config()
         changed = check_status()
+        if STATUS == 1:
+            check_between(iots)
         if changed:
             check_present(iots)
         if STATUS == 0 and changed and data_loaded['tv_ip']:
