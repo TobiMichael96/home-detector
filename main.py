@@ -77,7 +77,7 @@ def turn_off_all(iots):
 def check_between(iots):
     for iot in iots:
         if iot.on_time is None:
-            logging.info("Device {} has not on_time configured.".format(iot.name))
+            logging.debug("Device {} has not on_time configured.".format(iot.name))
             return
         between = is_between(iot.on_time, (datetime.now().strftime('%H:%M'),
                                            (datetime.now() + timedelta(seconds=30)).strftime('%H:%M')))
