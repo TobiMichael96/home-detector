@@ -77,6 +77,7 @@ def turn_off_all(iots):
 def check_between(iots):
     for iot in iots:
         if iot.on_time is None:
+            logging.info("Device {} has not on_time configured.".format(iot.name))
             return
         between = is_between(iot.on_time, (datetime.now().strftime('%H:%M'),
                                            (datetime.now() + timedelta(seconds=30)).strftime('%H:%M')))
@@ -222,11 +223,13 @@ if data_loaded['tv_ip']:
     if os.path.isfile(os.path.join(sys.path[0], 'tv_token')):
         with open(os.path.join(sys.path[0], 'tv_token'), 'r') as token_file:
             TOKEN = token_file.read()
+            logging.info("TV token successfully loaded from file.")
     else:
         get_tv_token()
         if TOKEN:
             with open(os.path.join(sys.path[0], 'tv_token'), 'w') as token_file:
                 token_file.write(TOKEN)
+                logging.debug("TV token successfully written from file.")
 
 STATUS = 1 if device_to_track['NewActive'] else 0
 logging.info("Initializing done...")
