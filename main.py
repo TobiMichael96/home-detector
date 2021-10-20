@@ -139,21 +139,28 @@ def send_tv_command(key):
 
     url = "wss://{}:8002/api/v2/channels/samsung.remote.control?name={}&token={}".format(data_loaded['tv_ip'],
                                                                                          REMOTE_NAME, TOKEN)
-    try:
-        ws = create_connection(url, sslopt={'cert_reqs': ssl.CERT_NONE},
-                               connection='Connection: Upgrade', validate_cert=False)
-        payload = json.dumps(
-            {'method': 'ms.remote.control',
-             'params': {
-                 'Cmd': 'Click',
-                 'DataOfCmd': key,
-                 'Option': 'false',
-                 'TypeOfRemote': 'SendRemoteKey'
-             }})
-        ws.send(payload=payload)
-        logging.info("Turned tv off, because device is not present.")
-    except (WebSocketException, WebSocketTimeoutException, KeyError) as e:
-        logging.error("Could not turn off TV with error: {}.".format(e))
+    loop_counter = 0
+    while check_tv_status():
+        if loop_counter == 2:
+            get_tv_token()
+        try:
+            ws = create_connection(url, sslopt={'cert_reqs': ssl.CERT_NONE},
+                                   connection='Connection: Upgrade', validate_cert=False)
+            payload = json.dumps(
+                {'method': 'ms.remote.control',
+                 'params': {
+                     'Cmd': 'Click',
+                     'DataOfCmd': key,
+                     'Option': 'false',
+                     'TypeOfRemote': 'SendRemoteKey'
+                 }})
+            ws.send(payload=payload)
+            loop_counter += 1
+            time.sleep(5)
+            logging.info("Turned tv off, because device is not present.")
+        except (WebSocketException, WebSocketTimeoutException, KeyError) as e:
+            logging.error("Could not turn off TV with error: {}.".format(e))
+            break
 
 
 def main():
