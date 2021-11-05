@@ -169,8 +169,8 @@ def main():
         changed = check_status()
         if STATUS == 1:
             if data_loaded['pin_green'] and data_loaded['pin_red']:
-                GPIO.output(data_loaded['pin_green'], False)
-                GPIO.output(data_loaded['pin_red'], True)
+                GPIO.output(data_loaded['pin_green'], True)
+                GPIO.output(data_loaded['pin_red'], False)
             check_between(iots)
         if changed:
             check_present(iots)
