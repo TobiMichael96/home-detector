@@ -100,7 +100,7 @@ def check_present(iots):
 
 def check_tv_status():
     try:
-        result = requests.get('http://192.168.178.30:8001/api/v2/', timeout=5)
+        result = requests.get('http://{}:8001/api/v2/'.format(data_loaded['tv_ip']), timeout=5)
     except requests.exceptions.ConnectTimeout:
         return False
 
@@ -168,11 +168,18 @@ def main():
         iots = load_config()
         changed = check_status()
         if STATUS == 1:
+            if data_loaded['pin_green'] and data_loaded['pin_red']:
+                GPIO.output(data_loaded['pin_green'], False)
+                GPIO.output(data_loaded['pin_red'], True)
             check_between(iots)
         if changed:
             check_present(iots)
-        if STATUS == 0 and changed and data_loaded['tv_ip']:
-            send_tv_command('KEY_POWER')
+        if STATUS == 0:
+            if data_loaded['pin_green'] and data_loaded['pin_red']:
+                GPIO.output(data_loaded['pin_green'], False)
+                GPIO.output(data_loaded['pin_red'], True)
+            if changed and data_loaded['tv_ip']:
+                send_tv_command('KEY_POWER')
         logging.debug("Device present: {}.".format("false" if STATUS == 0 else "true"))
         time.sleep(10)
 
@@ -218,6 +225,14 @@ if data_loaded['log'] == "debug":
     logging.warning("Increased loglevel to debug.")
 
 logging.info("Initiating application now...")
+
+if data_loaded['pin_green'] and data_loaded['pin_red']:
+    import RPi.GPIO as GPIO
+    import time
+    GPIO.setwarnings(False)
+    GPIO.setmode(GPIO.BCM)
+    GPIO.setup(data_loaded['pin_green'], GPIO.OUT)
+    GPIO.setup(data_loaded['pin_red'], GPIO.OUT)
 
 FB_CONNECTION, device_to_track = connect_fritz_box()
 if device_to_track is None:
