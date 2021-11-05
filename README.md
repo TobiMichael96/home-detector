@@ -36,6 +36,12 @@ Devices can either look like this:
     time: "19:00"
 ````
 
+```yaml
+  example2:
+    ip: "192.168.2.234"
+    time: "night" # this will set the time to the global night_time
+````
+
 or like this if you want to use the **night_time** feature:
 
 ```yaml
