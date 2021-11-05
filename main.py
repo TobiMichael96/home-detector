@@ -17,7 +17,10 @@ class IOT:
     def __init__(self, name, ip, on_time, night):
         self.name = name
         self.ip = str(ip)
-        self.on_time = on_time
+        if on_time == "night" and night_time is not None:
+            self.on_time = night_time
+        else:
+            self.on_time = on_time
         self.night = night
 
     def turn_on(self):
@@ -87,8 +90,8 @@ def check_between(iots):
 
 
 def check_present(iots):
-    if STATUS == 1 and 'night_time' in data_loaded:
-        if datetime.now().strftime('%H:%M') > data_loaded['night_time']:
+    if STATUS == 1 and night_time is not None:
+        if datetime.now().strftime('%H:%M') > night_time:
             for iot in iots:
                 if iot.night:
                     iot.turn_on()
@@ -163,19 +166,31 @@ def send_tv_command(key):
             break
 
 
+def calculate_night_time():
+    result = requests.get(
+        "https://api.sunrise-sunset.org/json?lat={}&lng={}&formatted=0".format(data_loaded['night_long'],
+                                                                               data_loaded['night_lat']))
+    night_time_calc = datetime.strptime(result.json()['results']['civil_twilight_end'], '%Y-%m-%dT%H:%M:%S%z')
+    if "night_offset" in data_loaded:
+        night_time_calc = night_time_calc + timedelta(minutes=int(data_loaded['night_offset']))
+    night_time_calc = night_time_calc.strftime('%H:%M')
+    logging.info("Calculated night time to: {}".format(night_time_calc))
+    return night_time_calc
+
+
 def main():
     while True:
         iots = load_config()
         changed = check_status()
         if STATUS == 1:
-            if data_loaded['pin_green'] and data_loaded['pin_red']:
+            if "pin_green" in data_loaded and "pin_red" in data_loaded:
                 GPIO.output(data_loaded['pin_green'], True)
                 GPIO.output(data_loaded['pin_red'], False)
             check_between(iots)
         if changed:
             check_present(iots)
         if STATUS == 0:
-            if data_loaded['pin_green'] and data_loaded['pin_red']:
+            if "pin_green" in data_loaded and "pin_red" in data_loaded:
                 GPIO.output(data_loaded['pin_green'], False)
                 GPIO.output(data_loaded['pin_red'], True)
             if changed and data_loaded['tv_ip']:
@@ -226,13 +241,21 @@ if data_loaded['log'] == "debug":
 
 logging.info("Initiating application now...")
 
-if data_loaded['pin_green'] and data_loaded['pin_red']:
+if "pin_green" in data_loaded and "pin_red" in data_loaded:
     import RPi.GPIO as GPIO
     import time
+
     GPIO.setwarnings(False)
     GPIO.setmode(GPIO.BCM)
     GPIO.setup(data_loaded['pin_green'], GPIO.OUT)
     GPIO.setup(data_loaded['pin_red'], GPIO.OUT)
+
+if "night_long" in data_loaded and "night_lat" in data_loaded:
+    night_time = calculate_night_time()
+elif "night_time" in data_loaded:
+    night_time = data_loaded['night_time']
+else:
+    night_time = None
 
 FB_CONNECTION, device_to_track = connect_fritz_box()
 if device_to_track is None:
@@ -255,4 +278,11 @@ if data_loaded['tv_ip']:
 
 STATUS = 1 if device_to_track['NewActive'] else 0
 logging.info("Initializing done...")
-main()
+
+try:
+    main()
+except KeyboardInterrupt:
+    if data_loaded['pin_green'] and data_loaded['pin_red']:
+        logging.info("Process stopped, turning off leds.")
+        GPIO.output(data_loaded['pin_green'], False)
+        GPIO.output(data_loaded['pin_red'], False)

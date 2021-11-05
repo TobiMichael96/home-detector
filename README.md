@@ -17,8 +17,16 @@ The key ``night_time`` enables a feature: It will turn on your devices
 when the device becomes present after the specified time (if you enabled this feature 
 at the device level).
 
+There are also 3 other keys which will enable this feature: `night_long`, `night_lat` and `night_offset`.
+With `night_long` and `night_lat` you can set the longitude and latitude of your location and Home-Detector
+will then calculate the **civil twilight end** and apply your offset (if set) to it.
+Setting these keys will overwrite the ``night_time`` key.
+
 The key ``tv_ip`` enables another feature: It will turn off your Samsung TV when the device
 is not present anymore. This requires the ``websocket-client`` module.
+
+Additionally, there are two keys (`pin_green` and `pin_red`) which enable another feature.
+With these keys you can tell Home-Detector what pins your LEDs are connected to.
 
 Devices can either look like this:
 
